@@ -1,0 +1,7 @@
+BEGIN;
+
+DROP TABLE IF EXISTS calculations;
+DROP TABLE IF EXISTS metal_prices;
+DROP TABLE IF EXISTS app_settings;
+
+COMMIT;

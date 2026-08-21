@@ -1,0 +1,15 @@
+# Secrets — env files never enter version control
+.env
+*.env
+!.env.example
+
+# Go
+backend/bin/
+*.test
+*.out
+coverage.*
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
