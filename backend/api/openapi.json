@@ -1,0 +1,1217 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Islamic Calculator API",
+    "description": "REST API for Shariah-compliant financial calculators. Amounts are decimal strings (e.g. \"12500000.50\") with an ISO 4217 currency code; UZS is the default. Calculator endpoints land here phase by phase — see PLAN.md.\n",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "Create an account and receive an access/refresh token pair",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 72
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "user + accessToken (JWT, 15m) + refreshToken (30d, single-use)"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "409": {
+            "description": "Email already registered"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Log in with email and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token pair"
+          },
+          "401": {
+            "description": "Invalid email or password (same message for both)"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "summary": "Rotate the refresh token for a new token pair",
+        "description": "The presented refresh token is revoked on use; reuse returns 401.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New token pair"
+          },
+          "401": {
+            "description": "Invalid",
+            "expired": null,
+            "or already-used refresh token": null
+          }
+        }
+      }
+    },
+    "/api/v1/history/": {
+      "get": {
+        "summary": "The signed-in user's saved calculations, newest first",
+        "security": [
+          {
+            "bearerAuth": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "calcType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "e.g. finance.murabaha"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entries with original inputs and results"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      }
+    },
+    "/api/v1/history/{id}": {
+      "delete": {
+        "summary": "Delete one of the user's saved calculations",
+        "security": [
+          {
+            "bearerAuth": [
+
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "404": {
+            "description": "Not found or not owned by the user"
+          }
+        }
+      }
+    },
+    "/api/v1/finance/murabaha": {
+      "post": {
+        "summary": "Murabaha installment schedule",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cost",
+                  "markup",
+                  "termMonths"
+                ],
+                "properties": {
+                  "cost": {
+                    "type": "string",
+                    "example": "120000000"
+                  },
+                  "markup": {
+                    "type": "object",
+                    "required": [
+                      "mode",
+                      "value"
+                    ],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "rate",
+                          "amount"
+                        ]
+                      },
+                      "value": {
+                        "type": "string",
+                        "example": "0.10"
+                      }
+                    }
+                  },
+                  "downPayment": {
+                    "type": "string",
+                    "example": "0"
+                  },
+                  "termMonths": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 360
+                  },
+                  "firstDueDate": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fixed sale price with the full installment schedule"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/finance/ijara": {
+      "post": {
+        "summary": "Ijara Muntahia Bittamleek rent schedule and transfer price",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mode",
+                  "assetCost",
+                  "termMonths"
+                ],
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "profit",
+                      "rent"
+                    ],
+                    "description": "profit derives rent from a target profit; rent derives the implied profit"
+                  },
+                  "assetCost": {
+                    "type": "string",
+                    "example": "100000000"
+                  },
+                  "profit": {
+                    "type": "object",
+                    "description": "required when mode=profit",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "rate",
+                          "amount"
+                        ]
+                      },
+                      "value": {
+                        "type": "string",
+                        "example": "0.20"
+                      }
+                    }
+                  },
+                  "monthlyRent": {
+                    "type": "string",
+                    "description": "required when mode=rent"
+                  },
+                  "transferPrice": {
+                    "type": "string",
+                    "example": "10000000"
+                  },
+                  "advancePayment": {
+                    "type": "string"
+                  },
+                  "termMonths": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 360
+                  },
+                  "firstDueDate": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rent schedule, total receipts, and implied profit"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/finance/qard-hasan": {
+      "post": {
+        "summary": "Qard al-Hasan repayment schedule (principal + fixed fee only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "principal",
+                  "termMonths"
+                ],
+                "properties": {
+                  "principal": {
+                    "type": "string",
+                    "example": "10000000"
+                  },
+                  "serviceFee": {
+                    "type": "string",
+                    "description": "fixed amount, never a percentage; defaults to 0"
+                  },
+                  "termMonths": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 360
+                  },
+                  "firstDueDate": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schedule repaying exactly the principal; fee shown separately"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/finance/mudaraba": {
+      "post": {
+        "summary": "Expected (non-guaranteed) profit on a Mudaraba or Wakala deposit",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mode",
+                  "amount",
+                  "poolRateAnnual",
+                  "termMonths"
+                ],
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "mudaraba",
+                      "wakala"
+                    ]
+                  },
+                  "amount": {
+                    "type": "string",
+                    "example": "10000000"
+                  },
+                  "poolRateAnnual": {
+                    "type": "string",
+                    "example": "0.18"
+                  },
+                  "shareRatio": {
+                    "type": "string",
+                    "description": "required when mode=mudaraba, (0..1]"
+                  },
+                  "wakalaFeeRate": {
+                    "type": "string",
+                    "description": "wakala only, must not exceed poolRateAnnual"
+                  },
+                  "termMonths": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 120
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Expected profit and total; guaranteed is always false"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/zakat/wealth": {
+      "post": {
+        "summary": "Gold, silver, and cash zakat with live-nisab check",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "goldGrams": {
+                    "type": "string",
+                    "example": "100"
+                  },
+                  "silverGrams": {
+                    "type": "string",
+                    "example": "0"
+                  },
+                  "cash": {
+                    "type": "string",
+                    "example": "50000000"
+                  },
+                  "otherAssets": {
+                    "type": "string",
+                    "example": "0"
+                  },
+                  "hawlComplete": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Zakat due with nisab thresholds and price provenance"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/finance/salam": {
+      "post": {
+        "summary": "Salam forward purchase — full advance vs. expected delivery value",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "quantity",
+                  "unitPrice",
+                  "expectedUnitPrice"
+                ],
+                "properties": {
+                  "quantity": {
+                    "type": "string",
+                    "example": "100"
+                  },
+                  "unitPrice": {
+                    "type": "string",
+                    "description": "contracted advance price per unit"
+                  },
+                  "expectedUnitPrice": {
+                    "type": "string",
+                    "description": "expected market price at delivery"
+                  },
+                  "deliveryDate": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Advance total (paid in full at contract)",
+            "expected value and margin": null
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/finance/istisna": {
+      "post": {
+        "summary": "Istisna staged payment schedule",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mode",
+                  "contractPrice"
+                ],
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "milestones",
+                      "equal"
+                    ]
+                  },
+                  "contractPrice": {
+                    "type": "string",
+                    "example": "90000000"
+                  },
+                  "milestones": {
+                    "type": "array",
+                    "description": "mode=milestones; percents must sum to exactly 100",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "percent"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "percent": {
+                          "type": "string",
+                          "example": "30"
+                        },
+                        "dueDate": {
+                          "type": "string",
+                          "format": "date"
+                        }
+                      }
+                    }
+                  },
+                  "stages": {
+                    "type": "integer",
+                    "description": "mode=equal",
+                    "1..120": null
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stage payment schedule summing exactly to the contract price"
+          },
+          "400": {
+            "description": "Validation error (incl. percents_must_sum_to_100)"
+          }
+        }
+      }
+    },
+    "/api/v1/finance/musharaka": {
+      "post": {
+        "summary": "Musharaka profit/loss distribution",
+        "description": "Profit follows the agreed ratio; loss ALWAYS follows capital shares — there is no way to allocate a loss differently.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "partners",
+                  "resultType",
+                  "amount"
+                ],
+                "properties": {
+                  "partners": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "capital",
+                        "profitSharePercent"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "capital": {
+                          "type": "string"
+                        },
+                        "profitSharePercent": {
+                          "type": "string",
+                          "description": "must sum to 100 across partners"
+                        }
+                      }
+                    }
+                  },
+                  "resultType": {
+                    "type": "string",
+                    "enum": [
+                      "profit",
+                      "loss"
+                    ]
+                  },
+                  "amount": {
+                    "type": "string",
+                    "description": "the period's profit or loss",
+                    "positive": null
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-partner shares with the basis used (agreed_ratio or capital_ratio)"
+          },
+          "400": {
+            "description": "Validation error (incl. profit_shares_must_sum_to_100)"
+          }
+        }
+      }
+    },
+    "/api/v1/finance/late-payment": {
+      "post": {
+        "summary": "Charity due on an overdue installment (never booked as income)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mode",
+                  "overdueAmount",
+                  "daysLate"
+                ],
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "rate",
+                      "flat"
+                    ]
+                  },
+                  "overdueAmount": {
+                    "type": "string",
+                    "example": "10000000"
+                  },
+                  "daysLate": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "annualRate": {
+                    "type": "string",
+                    "description": "rate mode, e.g. 0.10"
+                  },
+                  "flatFee": {
+                    "type": "string",
+                    "description": "flat mode"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "charityDue with disposition: charity"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/zakat/business": {
+      "post": {
+        "summary": "Business zakat on net working capital",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cash": {
+                    "type": "string"
+                  },
+                  "receivables": {
+                    "type": "string"
+                  },
+                  "inventory": {
+                    "type": "string",
+                    "description": "at market value"
+                  },
+                  "shortTermLiabilities": {
+                    "type": "string"
+                  },
+                  "hawlComplete": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Zakat base",
+            "nisab gate": null,
+            "and amount due": null
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/zakat/ushr": {
+      "post": {
+        "summary": "Harvest zakat (10% natural water, 5% irrigated)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "irrigationType",
+                  "harvestValue"
+                ],
+                "properties": {
+                  "irrigationType": {
+                    "type": "string",
+                    "enum": [
+                      "natural",
+                      "irrigated"
+                    ]
+                  },
+                  "harvestValue": {
+                    "type": "string",
+                    "example": "20000000"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rate applied and ushr due"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/zakat/livestock": {
+      "post": {
+        "summary": "Livestock zakat by head count, or silk cocoons by market value",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "species"
+                ],
+                "properties": {
+                  "species": {
+                    "type": "string",
+                    "enum": [
+                      "sheep_goats",
+                      "cattle",
+                      "camels",
+                      "silk_cocoons"
+                    ]
+                  },
+                  "count": {
+                    "type": "integer",
+                    "description": "head count (animal species)"
+                  },
+                  "marketValue": {
+                    "type": "string",
+                    "description": "silk_cocoons only"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Animals due (or cashDue for cocoons); belowNisab when under the minimum"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/zakat/fidya": {
+      "post": {
+        "summary": "Fidya and kaffarah amounts",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "count"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "fidya",
+                      "kaffarah_fast",
+                      "kaffarah_oath"
+                    ]
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "missed days / broken fasts / oaths"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Total due with the configured daily rate; needsReview flags unapproved seed rates"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/zakat/tazkiya": {
+      "post": {
+        "summary": "Income purification — amount to purge to charity",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mode"
+                ],
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "declared",
+                      "dividend"
+                    ]
+                  },
+                  "totalIncome": {
+                    "type": "string",
+                    "description": "declared mode"
+                  },
+                  "impureAmount": {
+                    "type": "string",
+                    "description": "declared mode"
+                  },
+                  "dividendAmount": {
+                    "type": "string",
+                    "description": "dividend mode"
+                  },
+                  "impureRatio": {
+                    "type": "string",
+                    "description": "dividend mode, 0..1"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Purge amount and clean remainder"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/invest/screener": {
+      "post": {
+        "summary": "AAOIFI halal stock screening from hand-entered financials",
+        "description": "Activity screen plus three ratio screens; thresholds live in the screener_rules table (30% / 30% / 5% AAOIFI defaults). A ratio at or above its threshold fails.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "marketCap",
+                  "totalRevenue"
+                ],
+                "properties": {
+                  "prohibitedActivities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "any entry (e.g. gambling, conventional_banking) fails the activity screen"
+                  },
+                  "interestBearingDebt": {
+                    "type": "string"
+                  },
+                  "interestBearingInvestments": {
+                    "type": "string",
+                    "description": "cash + interest-bearing securities"
+                  },
+                  "marketCap": {
+                    "type": "string"
+                  },
+                  "impureIncome": {
+                    "type": "string"
+                  },
+                  "totalRevenue": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verdict",
+            "per-rule pass/fail with ratios": null,
+            "and the purification ratio": null
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/invest/sukuk": {
+      "post": {
+        "summary": "Expected income and yield for sukuk positions and the portfolio",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "positions"
+                ],
+                "properties": {
+                  "positions": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "faceValue",
+                        "purchasePrice",
+                        "distributionRateAnnual",
+                        "frequency",
+                        "termMonths"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "faceValue": {
+                          "type": "string"
+                        },
+                        "purchasePrice": {
+                          "type": "string"
+                        },
+                        "distributionRateAnnual": {
+                          "type": "string",
+                          "example": "0.09"
+                        },
+                        "frequency": {
+                          "type": "integer",
+                          "enum": [
+                            1,
+                            2,
+                            4,
+                            12
+                          ]
+                        },
+                        "termMonths": {
+                          "type": "integer",
+                          "description": "must align with frequency"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-position schedules and portfolio totals; guaranteed is always false"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/reference/livestock-rules": {
+      "get": {
+        "summary": "Seeded Hanafi livestock zakat tiers (for client display)",
+        "responses": {
+          "200": {
+            "description": "All rule tiers by species; cattle 90+ is computed by the combination rule"
+          }
+        }
+      }
+    },
+    "/api/v1/rates/metals": {
+      "get": {
+        "summary": "Current gold/silver prices and the nisab values they imply",
+        "responses": {
+          "200": {
+            "description": "Latest cached spot prices with nisab thresholds"
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Liveness probe",
+        "responses": {
+          "200": {
+            "description": "Process is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Readiness probe (pings the database)",
+        "responses": {
+          "200": {
+            "description": "Ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Optional on every calculator endpoint — an authenticated calculation is saved to the user's history; anonymous requests work unchanged. Required on /history.\n"
+      }
+    },
+    "schemas": {
+      "StatusEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "example": "ok"
+              }
+            }
+          }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "VALIDATION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

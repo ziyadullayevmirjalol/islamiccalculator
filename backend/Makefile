@@ -4,7 +4,7 @@ include .env
 export
 endif
 
-.PHONY: run build test lint tidy docker-up docker-down migrate-up migrate-down migrate-new
+.PHONY: run build test lint tidy docker-up docker-down migrate-up migrate-down migrate-new openapi-json
 
 run: ## Run the server on the host
 	go run ./cmd/server
@@ -34,6 +34,10 @@ migrate-up:
 
 migrate-down:
 	go run ./cmd/migrate -dir down -steps 1
+
+openapi-json: ## regenerate api/openapi.json from api/openapi.yaml
+	ruby -ryaml -rjson -e 'puts JSON.pretty_generate(YAML.load_file("api/openapi.yaml"))' > api/openapi.json
+	@echo "wrote api/openapi.json"
 
 migrate-new: ## usage: make migrate-new name=add_users
 	@n=$$(ls migrations/*.up.sql 2>/dev/null | wc -l | tr -d ' '); \

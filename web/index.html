@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Islamic Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#EDF5F1',
+              100: '#DCEBE3',
+              200: '#B4D6C6',
+              600: '#0E6B4E',
+              700: '#0B573F',
+              800: '#08462F',
+              900: '#0A2E21',
+            },
+            brass: {
+              100: '#F3EAD5',
+              600: '#A87D2C',
+              700: '#8A6522',
+            },
+            paper: '#FAFAF8',
+            ink: '#1C2420',
+          },
+          fontFamily: {
+            sans: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="bg-paper text-ink font-sans min-h-screen flex flex-col">
+  <header id="header" class="border-b border-stone-200 bg-white/90 backdrop-blur sticky top-0 z-10"></header>
+  <main id="app" class="flex-1 w-full max-w-6xl mx-auto px-4 py-8"></main>
+  <footer class="border-t border-stone-200 text-sm text-stone-500">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-2">
+      <span>Islamic Calculator — demo web client for the Go backend</span>
+      <span class="font-mono text-xs" id="api-base-label"></span>
+    </div>
+  </footer>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

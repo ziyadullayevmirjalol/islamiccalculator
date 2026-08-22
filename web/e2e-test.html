@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>e2e</title></head><body>
+<pre id="out">running…</pre>
+<script type="module">
+import { api, register, session, logout } from './js/api.js';
+import { calcById } from './js/calculators.js';
+
+const out = [];
+const log = (ok, name, extra = '') => out.push(`${ok ? 'PASS' : 'FAIL'} ${name} ${extra}`);
+
+try {
+  logout();
+
+  // 1. anonymous murabaha through the calc definition's own payload builder
+  const def = calcById('murabaha');
+  const d1 = await api(def.endpoint, { method: 'POST', body: def.payload({
+    cost: '120000000', markupMode: 'rate', markupValue: '0.10', termMonths: '12',
+  }) });
+  log(d1.monthlyInstallment === '11000000.00', 'anon-murabaha', d1.monthlyInstallment);
+
+  // 2. register + authed calculation
+  const email = `e2e-${Date.now()}@test.local`;
+  await register(email, 'strong-password-1');
+  log(!!session()?.accessToken, 'register');
+
+  const zdef = calcById('wealth-zakat');
+  const d2 = await api(zdef.endpoint, { method: 'POST', body: zdef.payload({
+    cash: '50000000', hawlComplete: true,
+  }) });
+  log(d2.zakatDue === '1250000.00', 'authed-zakat', d2.zakatDue);
+
+  // 3. history round-trip + delete
+  const h = await api('/api/v1/history/?limit=5');
+  log(h.entries?.length === 1 && h.entries[0].calcType === 'zakat.wealth', 'history-list',
+      String(h.entries?.length));
+  await api(`/api/v1/history/${h.entries[0].id}`, { method: 'DELETE' });
+  const h2 = await api('/api/v1/history/?limit=5');
+  log((h2.entries || []).length === 0, 'history-delete');
+
+  // 4. validation error surfaces typed fields
+  try {
+    await api(def.endpoint, { method: 'POST', body: def.payload({
+      cost: '1000', markupMode: 'rate', markupValue: '0.1', termMonths: '0',
+    }) });
+    log(false, 'validation-error');
+  } catch (e) {
+    log(e.code === 'VALIDATION_FAILED' && e.fields.termMonths === 'out_of_range', 'validation-error', e.fields.termMonths);
+  }
+
+  logout();
+} catch (e) {
+  out.push('FATAL ' + e.message);
+}
+document.getElementById('out').textContent = out.join('\n');
+</script>
+</body></html>

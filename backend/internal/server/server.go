@@ -4,16 +4,19 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
+	"gopkg.in/yaml.v3"
 
 	"github.com/diyorbek/islamiccalculator/api"
 	"github.com/diyorbek/islamiccalculator/internal/config"
@@ -121,6 +124,7 @@ func NewRouter(h Handlers, opts Options) http.Handler {
 		})
 		r.Get("/docs", docsPage)
 		r.Get("/docs/openapi.yaml", openAPISpec)
+		r.Get("/docs/openapi.json", openAPISpecJSON)
 	})
 
 	return r
@@ -140,6 +144,26 @@ func maxBody(n int64) func(http.Handler) http.Handler {
 func openAPISpec(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
 	_, _ = w.Write(api.OpenAPI)
+}
+
+// specJSON is the embedded YAML contract converted once at first request,
+// so the JSON form can never drift from the YAML source of truth.
+var specJSON = sync.OnceValues(func() ([]byte, error) {
+	var doc map[string]any
+	if err := yaml.Unmarshal(api.OpenAPI, &doc); err != nil {
+		return nil, err
+	}
+	return json.MarshalIndent(doc, "", "  ")
+})
+
+func openAPISpecJSON(w http.ResponseWriter, _ *http.Request) {
+	body, err := specJSON()
+	if err != nil {
+		httpx.Err(w, apperr.Internal("render openapi.json", err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(body)
 }
 
 func docsPage(w http.ResponseWriter, _ *http.Request) {

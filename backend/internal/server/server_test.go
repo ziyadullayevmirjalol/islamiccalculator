@@ -780,6 +780,69 @@ func TestAuthBoundaries(t *testing.T) {
 	})
 }
 
+func TestHardening(t *testing.T) {
+	t.Run("oversized body rejected", func(t *testing.T) {
+		router, _ := newTestRouter(fakePinger{}) // 4KB cap in tests
+		huge := `{"cost": "` + strings.Repeat("9", 5000) + `"`
+		rec := do(t, router, http.MethodPost, "/api/v1/finance/murabaha", huge)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "request body too large")
+	})
+
+	t.Run("rate limit returns 429 envelope", func(t *testing.T) {
+		router, _ := newTestRouterWithOptions(Options{RateLimitPerMin: 2})
+		do(t, router, http.MethodGet, "/healthz", "")
+		do(t, router, http.MethodGet, "/healthz", "")
+		rec := do(t, router, http.MethodGet, "/healthz", "")
+		assert.Equal(t, http.StatusTooManyRequests, rec.Code)
+		assert.Contains(t, rec.Body.String(), "RATE_LIMITED")
+	})
+
+	t.Run("stale seed prices are flagged", func(t *testing.T) {
+		// Test metals carry FetchedAt = epoch, far past the 48h threshold.
+		router, _ := newTestRouter(fakePinger{})
+		rec := do(t, router, http.MethodGet, "/api/v1/rates/metals", "")
+		require.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), `"stale":true`)
+	})
+
+	t.Run("docs are served", func(t *testing.T) {
+		router, _ := newTestRouter(fakePinger{})
+		rec := do(t, router, http.MethodGet, "/api/v1/docs/openapi.yaml", "")
+		require.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Islamic Calculator API")
+
+		rec = do(t, router, http.MethodGet, "/api/v1/docs", "")
+		require.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "swagger-ui")
+	})
+}
+
+// newTestRouterWithOptions builds the standard test router with custom
+// hardening options.
+func newTestRouterWithOptions(opts Options) (http.Handler, *fakeHistory) {
+	history := &fakeHistory{}
+	authSvc := service.NewAuth(
+		&fakeUsers{byEmail: map[string]service.User{}},
+		fakeRefresh{},
+		service.AuthConfig{Secret: "test-secret", AccessTTL: 15 * time.Minute, RefreshTTL: 24 * time.Hour},
+	)
+	settings := fakeSettings{}
+	metals := fakeMetals{}
+	rules := fakeRules{}
+	return NewRouter(Handlers{
+		Health:       handler.NewHealth(fakePinger{}),
+		Finance:      handler.NewFinance(service.NewFinance(history)),
+		Zakat:        handler.NewZakat(service.NewZakat(settings, metals, rules, history, 0)),
+		Invest:       handler.NewInvest(service.NewInvest(fakeScreenerRules{}, history)),
+		Rates:        handler.NewRates(service.NewRates(settings, metals, 0)),
+		Reference:    handler.NewReference(service.NewReference(rules)),
+		Auth:         handler.NewAuth(authSvc),
+		History:      handler.NewHistory(service.NewHistory(history)),
+		VerifyAccess: authSvc.VerifyAccess,
+	}, opts), history
+}
+
 func TestUnknownRouteIs404(t *testing.T) {
 	router, _ := newTestRouter(fakePinger{})
 	rec := do(t, router, http.MethodGet, "/api/v1/nope", "")

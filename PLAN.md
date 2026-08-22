@@ -1,7 +1,15 @@
 # Islamic Calculator — Backend Implementation Plan
 
-**Stack:** Go 1.23+ monolith · REST API (`/api/v1`) · PostgreSQL 16 · Flutter client (separate track)
+**Stack:** Go monolith · REST API (`/api/v1`) · PostgreSQL 16 · Flutter client (separate track)
 **Date:** 2026-08-21 · **Source:** `the idea.txt`
+
+> **Status (2026-08-21): all phases 0–7 implemented.** All 16 calculators live
+> (4 retail + 4 corporate + 6 religious + 2 investment), JWT auth + history,
+> rate limiting + body limits, live metal-price refresher with staleness
+> flags, docs served at `/api/v1/docs`, deployable Docker image verified.
+> Remaining before launch: pick a metals API key, scholar review of seeded
+> fiqh values (`needs_review` flags), and the Flutter client. See
+> [backend/README.md](backend/README.md).
 
 ---
 
