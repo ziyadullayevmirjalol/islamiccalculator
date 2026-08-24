@@ -35,9 +35,9 @@ migrate-up:
 migrate-down:
 	go run ./cmd/migrate -dir down -steps 1
 
-openapi-json: ## regenerate api/openapi.json from api/openapi.yaml
-	ruby -ryaml -rjson -e 'puts JSON.pretty_generate(YAML.load_file("api/openapi.yaml"))' > api/openapi.json
-	@echo "wrote api/openapi.json"
+openapi-json: ## regenerate internal/openapi/openapi.json from internal/openapi/openapi.yaml
+	ruby -ryaml -rjson -e 'puts JSON.pretty_generate(YAML.load_file("internal/openapi/openapi.yaml"))' > internal/openapi/openapi.json
+	@echo "wrote internal/openapi/openapi.json"
 
 migrate-new: ## usage: make migrate-new name=add_users
 	@n=$$(ls migrations/*.up.sql 2>/dev/null | wc -l | tr -d ' '); \

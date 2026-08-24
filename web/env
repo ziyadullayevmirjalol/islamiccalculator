@@ -3,6 +3,6 @@
 # (Named "env" without the dot because static hosts often refuse to serve dotfiles.)
 
 # Base URL of the Go backend API (no trailing slash).
-# Local dev:            http://localhost:8080
-# Render deployment:    https://your-service.onrender.com
-API_BASE_URL=http://localhost:8080
+# Local dev:      http://localhost:8080
+# Production:     https://islamiccalculator-api.vercel.app
+API_BASE_URL=https://islamiccalculator-api.vercel.app

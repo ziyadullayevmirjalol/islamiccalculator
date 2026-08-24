@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -67,16 +68,16 @@ func (d DB) DSN() string {
 		d.User, d.Password, d.Host, d.Port, d.Name, d.SSLMode)
 }
 
-// Load reads configuration from envFile when it exists, then from the
-// process environment (environment always wins over file values).
+// Load reads configuration from the process environment, seeded from
+// envFile when it exists. Real environment variables always win over
+// file values (godotenv.Load never overrides existing vars).
 func Load(envFile string) (*Config, error) {
-	var cfg Config
 	if _, err := os.Stat(envFile); err == nil {
-		if err := cleanenv.ReadConfig(envFile, &cfg); err != nil {
+		if err := godotenv.Load(envFile); err != nil {
 			return nil, fmt.Errorf("read %s: %w", envFile, err)
 		}
-		return &cfg, nil
 	}
+	var cfg Config
 	if err := cleanenv.ReadEnv(&cfg); err != nil {
 		return nil, fmt.Errorf("read env: %w", err)
 	}

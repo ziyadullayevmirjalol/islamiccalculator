@@ -18,9 +18,9 @@ import (
 	"github.com/go-chi/httprate"
 	"gopkg.in/yaml.v3"
 
-	"github.com/diyorbek/islamiccalculator/api"
 	"github.com/diyorbek/islamiccalculator/internal/config"
 	"github.com/diyorbek/islamiccalculator/internal/handler"
+	"github.com/diyorbek/islamiccalculator/internal/openapi"
 	"github.com/diyorbek/islamiccalculator/internal/pkg/apperr"
 	"github.com/diyorbek/islamiccalculator/internal/pkg/authctx"
 	"github.com/diyorbek/islamiccalculator/internal/pkg/httpx"
@@ -143,14 +143,14 @@ func maxBody(n int64) func(http.Handler) http.Handler {
 
 func openAPISpec(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
-	_, _ = w.Write(api.OpenAPI)
+	_, _ = w.Write(openapi.Spec)
 }
 
 // specJSON is the embedded YAML contract converted once at first request,
 // so the JSON form can never drift from the YAML source of truth.
 var specJSON = sync.OnceValues(func() ([]byte, error) {
 	var doc map[string]any
-	if err := yaml.Unmarshal(api.OpenAPI, &doc); err != nil {
+	if err := yaml.Unmarshal(openapi.Spec, &doc); err != nil {
 		return nil, err
 	}
 	return json.MarshalIndent(doc, "", "  ")
