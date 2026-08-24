@@ -9,7 +9,10 @@ info:
   version: 0.1.0
 
 servers:
+  - url: https://islamiccalculator-api.vercel.app
+    description: Production
   - url: http://localhost:8080
+    description: Local development
 
 paths:
   /api/v1/auth/register:
