@@ -45,7 +45,9 @@ type App struct {
 }
 
 type HTTP struct {
-	Port            int           `env:"HTTP_PORT" env-default:"8080"`
+	// PaaS platforms (Vercel, Render, Heroku) inject the port to bind as
+	// PORT; it takes precedence. HTTP_PORT / 8080 serve local dev.
+	Port            int           `env:"PORT,HTTP_PORT" env-default:"8080"`
 	ReadTimeout     time.Duration `env:"HTTP_READ_TIMEOUT" env-default:"10s"`
 	WriteTimeout    time.Duration `env:"HTTP_WRITE_TIMEOUT" env-default:"15s"`
 	ShutdownTimeout time.Duration `env:"HTTP_SHUTDOWN_TIMEOUT" env-default:"10s"`

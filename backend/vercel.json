@@ -1,6 +1,3 @@
 {
-  "regions": ["syd1"],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
-  ]
+  "regions": ["syd1"]
 }
