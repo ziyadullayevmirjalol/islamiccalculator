@@ -18,11 +18,19 @@ python3 -m http.server 3000
 # open http://localhost:3000
 ```
 
-Point at a different backend without touching code:
+## Configuration — the `env` file
 
-```js
-localStorage.setItem('ic.apiBase', 'https://staging.example.com'); location.reload()
+All deploy-time settings live in [`env`](env) (same KEY=VALUE format as
+`backend/.env`; named without the dot because static hosts often refuse
+to serve dotfiles). Edit it when deploying — the JS never changes:
+
 ```
+API_BASE_URL=https://your-service.onrender.com
+```
+
+Precedence: a `localStorage.setItem('ic.apiBase', '…')` override wins,
+then the `env` file, then the built-in `http://localhost:8080` default.
+Future web settings should be added to this file, not hardcoded in JS.
 
 ## Layout
 

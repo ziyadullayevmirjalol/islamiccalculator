@@ -1,0 +1,8 @@
+# Web client runtime configuration — same KEY=VALUE format as backend/.env.
+# Edit this file when deploying; the JS never needs changes.
+# (Named "env" without the dot because static hosts often refuse to serve dotfiles.)
+
+# Base URL of the Go backend API (no trailing slash).
+# Local dev:            http://localhost:8080
+# Render deployment:    https://your-service.onrender.com
+API_BASE_URL=http://localhost:8080
