@@ -1,0 +1,607 @@
+{
+  "info": {
+    "name": "Islamic Calculator API",
+    "description": "All 25 endpoints of the Islamic Calculator backend.\n\n**Quick start**\n1. Run `Auth → Register` once — tokens are captured automatically into collection variables.\n2. Every calculator works WITHOUT auth (anonymous-first). Each calculator request has a disabled `Authorization` header — enable it to save the calculation to your history.\n3. `History` requests use the captured token automatically.\n4. Amounts are decimal STRINGS (e.g. \"120000000\"), never numbers.\n\nSwitch `baseUrl` to `http://localhost:8080` for local development.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://islamiccalculator-api.vercel.app" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "email", "value": "user@example.com" },
+    { "key": "password", "value": "strong-password-1" },
+    { "key": "historyId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/healthz", "host": ["{{baseUrl}}"], "path": ["healthz"] }
+          }
+        },
+        {
+          "name": "Readiness (pings DB)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/readyz", "host": ["{{baseUrl}}"], "path": ["readyz"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "if (d) {",
+                  "  pm.collectionVariables.set('accessToken', d.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+                  "  pm.collectionVariables.set('email', d.user.email);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user-{{$timestamp}}@example.com\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "register"] },
+            "description": "Creates an account with a unique email and auto-saves accessToken/refreshToken/email into collection variables."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "if (d) {",
+                  "  pm.collectionVariables.set('accessToken', d.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Refresh (single-use rotation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "if (d) {",
+                  "  pm.collectionVariables.set('accessToken', d.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] },
+            "description": "The presented refresh token is revoked on use; the new pair is auto-saved. Sending the same token twice returns 401."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Retail finance",
+      "item": [
+        {
+          "name": "Murabaha",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true, "description": "Enable to save to history" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cost\": \"120000000\",\n  \"markup\": { \"mode\": \"rate\", \"value\": \"0.10\" },\n  \"downPayment\": \"0\",\n  \"termMonths\": 12,\n  \"firstDueDate\": \"2026-10-01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/murabaha", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "murabaha"] },
+            "description": "markup.mode: rate (fraction of cost) or amount (absolute)."
+          }
+        },
+        {
+          "name": "Ijara — profit mode (derive rent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"profit\",\n  \"assetCost\": \"100000000\",\n  \"profit\": { \"mode\": \"rate\", \"value\": \"0.20\" },\n  \"transferPrice\": \"10000000\",\n  \"termMonths\": 24,\n  \"firstDueDate\": \"2026-10-01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/ijara", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "ijara"] }
+          }
+        },
+        {
+          "name": "Ijara — rent mode (derive profit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"rent\",\n  \"assetCost\": \"100000000\",\n  \"monthlyRent\": \"5000000\",\n  \"transferPrice\": \"10000000\",\n  \"termMonths\": 24\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/ijara", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "ijara"] },
+            "description": "profitTotal can be negative — a loss is information, not an error."
+          }
+        },
+        {
+          "name": "Qard al-Hasan",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"principal\": \"10000000\",\n  \"serviceFee\": \"100000\",\n  \"termMonths\": 10\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/qard-hasan", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "qard-hasan"] },
+            "description": "serviceFee is a fixed amount only — a percentage would be riba; the API has no way to express one."
+          }
+        },
+        {
+          "name": "Mudaraba deposit",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"mudaraba\",\n  \"amount\": \"10000000\",\n  \"poolRateAnnual\": \"0.18\",\n  \"shareRatio\": \"0.60\",\n  \"termMonths\": 12\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/mudaraba", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "mudaraba"] },
+            "description": "Response carries guaranteed:false — expected profit, never promised."
+          }
+        },
+        {
+          "name": "Wakala deposit",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"wakala\",\n  \"amount\": \"10000000\",\n  \"poolRateAnnual\": \"0.18\",\n  \"wakalaFeeRate\": \"0.02\",\n  \"termMonths\": 6\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/mudaraba", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "mudaraba"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Corporate finance",
+      "item": [
+        {
+          "name": "Salam",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": \"100\",\n  \"unitPrice\": \"2400000\",\n  \"expectedUnitPrice\": \"3000000\",\n  \"deliveryDate\": \"2027-09-01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/salam", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "salam"] },
+            "description": "The advance is always the FULL price at contract — partial advance is not valid Salam."
+          }
+        },
+        {
+          "name": "Istisna — milestones",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"milestones\",\n  \"contractPrice\": \"90000000\",\n  \"milestones\": [\n    { \"name\": \"foundation\", \"percent\": \"30\", \"dueDate\": \"2026-12-01\" },\n    { \"name\": \"structure\", \"percent\": \"50\" },\n    { \"name\": \"handover\", \"percent\": \"20\" }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/istisna", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "istisna"] },
+            "description": "Milestone percents must sum to exactly 100 or the request is rejected."
+          }
+        },
+        {
+          "name": "Istisna — equal stages",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"equal\",\n  \"contractPrice\": \"90000000\",\n  \"stages\": 3\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/istisna", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "istisna"] }
+          }
+        },
+        {
+          "name": "Musharaka — profit (agreed ratio)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"partners\": [\n    { \"name\": \"A\", \"capital\": \"70000000\", \"profitSharePercent\": \"50\" },\n    { \"name\": \"B\", \"capital\": \"30000000\", \"profitSharePercent\": \"50\" }\n  ],\n  \"resultType\": \"profit\",\n  \"amount\": \"20000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/musharaka", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "musharaka"] },
+            "description": "Profit shares must sum to 100."
+          }
+        },
+        {
+          "name": "Musharaka — loss (always by capital)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"partners\": [\n    { \"name\": \"A\", \"capital\": \"70000000\", \"profitSharePercent\": \"50\" },\n    { \"name\": \"B\", \"capital\": \"30000000\", \"profitSharePercent\": \"50\" }\n  ],\n  \"resultType\": \"loss\",\n  \"amount\": \"10000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/musharaka", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "musharaka"] },
+            "description": "Same partners, but the loss splits 70/30 by capital — the agreed profit ratio never applies to losses (basis: capital_ratio)."
+          }
+        },
+        {
+          "name": "Late payment — daily rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"rate\",\n  \"overdueAmount\": \"10000000\",\n  \"daysLate\": 73,\n  \"annualRate\": \"0.10\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/late-payment", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "late-payment"] },
+            "description": "The amount is charity (disposition: charity) — never the financier's income."
+          }
+        },
+        {
+          "name": "Late payment — flat fee",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"flat\",\n  \"overdueAmount\": \"10000000\",\n  \"daysLate\": 30,\n  \"flatFee\": \"50000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/late-payment", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "late-payment"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Zakat & religious",
+      "item": [
+        {
+          "name": "Wealth zakat (gold, silver, cash)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goldGrams\": \"100\",\n  \"silverGrams\": \"0\",\n  \"cash\": \"500000\",\n  \"otherAssets\": \"0\",\n  \"hawlComplete\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/zakat/wealth", "host": ["{{baseUrl}}"], "path": ["api", "v1", "zakat", "wealth"] },
+            "description": "Nisab from live metal prices; response includes price provenance and stale flags."
+          }
+        },
+        {
+          "name": "Business zakat",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cash\": \"30000000\",\n  \"receivables\": \"20000000\",\n  \"inventory\": \"50000000\",\n  \"shortTermLiabilities\": \"40000000\",\n  \"hawlComplete\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/zakat/business", "host": ["{{baseUrl}}"], "path": ["api", "v1", "zakat", "business"] }
+          }
+        },
+        {
+          "name": "Ushr (harvest)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"irrigationType\": \"natural\",\n  \"harvestValue\": \"20000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/zakat/ushr", "host": ["{{baseUrl}}"], "path": ["api", "v1", "zakat", "ushr"] },
+            "description": "irrigationType: natural (10%) or irrigated (5%)."
+          }
+        },
+        {
+          "name": "Livestock — herd",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"species\": \"cattle\",\n  \"count\": 150\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/zakat/livestock", "host": ["{{baseUrl}}"], "path": ["api", "v1", "zakat", "livestock"] },
+            "description": "species: sheep_goats | cattle | camels. 150 cattle → 1 tabi' + 3 musinna via the per-30/per-40 combination rule."
+          }
+        },
+        {
+          "name": "Livestock — silk cocoons",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"species\": \"silk_cocoons\",\n  \"marketValue\": \"8000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/zakat/livestock", "host": ["{{baseUrl}}"], "path": ["api", "v1", "zakat", "livestock"] }
+          }
+        },
+        {
+          "name": "Fidya / Kaffarah",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"kaffarah_fast\",\n  \"count\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/zakat/fidya", "host": ["{{baseUrl}}"], "path": ["api", "v1", "zakat", "fidya"] },
+            "description": "kind: fidya (1 feeding/day) | kaffarah_fast (60) | kaffarah_oath (10). needsReview:true = rate pending scholar approval."
+          }
+        },
+        {
+          "name": "Tazkiya — declared amount",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"declared\",\n  \"totalIncome\": \"10000000\",\n  \"impureAmount\": \"350000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/zakat/tazkiya", "host": ["{{baseUrl}}"], "path": ["api", "v1", "zakat", "tazkiya"] }
+          }
+        },
+        {
+          "name": "Tazkiya — dividend by ratio",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"dividend\",\n  \"dividendAmount\": \"2000000\",\n  \"impureRatio\": \"0.03\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/zakat/tazkiya", "host": ["{{baseUrl}}"], "path": ["api", "v1", "zakat", "tazkiya"] },
+            "description": "Use the purificationRatio from the stock screener as impureRatio."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Investment",
+      "item": [
+        {
+          "name": "Halal stock screener (AAOIFI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prohibitedActivities\": [],\n  \"interestBearingDebt\": \"200000000\",\n  \"interestBearingInvestments\": \"100000000\",\n  \"marketCap\": \"1000000000\",\n  \"impureIncome\": \"4000000\",\n  \"totalRevenue\": \"200000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/invest/screener", "host": ["{{baseUrl}}"], "path": ["api", "v1", "invest", "screener"] },
+            "description": "prohibitedActivities slugs (e.g. \"gambling\", \"conventional_banking\") — any entry fails the activity screen. Ratios must stay BELOW their thresholds (30%/30%/5%)."
+          }
+        },
+        {
+          "name": "Sukuk portfolio",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"positions\": [\n    { \"name\": \"UzAuto 2031\", \"faceValue\": \"100000000\", \"purchasePrice\": \"95000000\",\n      \"distributionRateAnnual\": \"0.09\", \"frequency\": 2, \"termMonths\": 60 },\n    { \"name\": \"NBU 2029\", \"faceValue\": \"50000000\", \"purchasePrice\": \"50000000\",\n      \"distributionRateAnnual\": \"0.12\", \"frequency\": 4, \"termMonths\": 36 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/invest/sukuk", "host": ["{{baseUrl}}"], "path": ["api", "v1", "invest", "sukuk"] },
+            "description": "frequency ∈ {1,2,4,12}; termMonths must be a multiple of 12/frequency."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rates & reference",
+      "item": [
+        {
+          "name": "Metal prices & nisab",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/rates/metals", "host": ["{{baseUrl}}"], "path": ["api", "v1", "rates", "metals"] }
+          }
+        },
+        {
+          "name": "Livestock zakat rule tiers",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/reference/livestock-rules", "host": ["{{baseUrl}}"], "path": ["api", "v1", "reference", "livestock-rules"] }
+          }
+        },
+        {
+          "name": "OpenAPI spec (JSON)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/docs/openapi.json", "host": ["{{baseUrl}}"], "path": ["api", "v1", "docs", "openapi.json"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "History (auth required)",
+      "item": [
+        {
+          "name": "List my calculations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "if (d && d.entries && d.entries.length) {",
+                  "  pm.collectionVariables.set('historyId', d.entries[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/history/?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "history", ""],
+              "query": [
+                { "key": "limit", "value": "20" },
+                { "key": "calcType", "value": "finance.murabaha", "disabled": true }
+              ]
+            },
+            "description": "Saves the newest entry's id into {{historyId}} for the delete request. Enable the calcType query param to filter."
+          }
+        },
+        {
+          "name": "Delete a calculation",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/history/{{historyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "history", "{{historyId}}"]
+            },
+            "description": "Uses {{historyId}} captured by the list request. 404 if the entry isn't yours."
+          }
+        }
+      ]
+    }
+  ]
+}
