@@ -1,4 +1,7 @@
-// Small DOM + component helpers shared by every page.
+// Small DOM + component helpers shared by every page. Text passed to
+// kvRows / dataTable / sectionTitle / notice / badge is translated here,
+// so calculator definitions stay in English source strings.
+import { t } from './i18n.js';
 
 export function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -53,7 +56,7 @@ export function kvRows(rows) {
   return el('dl', { class: 'divide-y divide-stone-100' },
     rows.filter(Boolean).map(([label, value, opts = {}]) =>
       el('div', { class: 'flex items-baseline justify-between gap-4 py-2' },
-        el('dt', { class: 'text-sm text-stone-500' }, label),
+        el('dt', { class: 'text-sm text-stone-500' }, t(label)),
         el('dd', {
           class: 'font-mono text-sm tabular-nums text-right ' +
                  (opts.emphasis ? 'text-lg font-semibold text-brand-700 ' : '') +
@@ -71,7 +74,7 @@ export function dataTable(columns, rows) {
           columns.map(c => el('th', {
             class: 'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-stone-500 ' +
                    (c.align === 'right' ? 'text-right' : ''),
-          }, c.label)))),
+          }, t(c.label))))),
       el('tbody', { class: 'divide-y divide-stone-100' },
         rows.map(r => el('tr', { class: 'hover:bg-brand-50/40' },
           columns.map(c => el('td', {
@@ -81,6 +84,7 @@ export function dataTable(columns, rows) {
 }
 
 export function badge(text, tone = 'brand') {
+  text = t(text);
   const tones = {
     brand: 'bg-brand-100 text-brand-800',
     brass: 'bg-brass-100 text-brass-700',
@@ -99,9 +103,9 @@ export function notice(text, tone = 'warn') {
     info: 'border-brand-200 bg-brand-50 text-brand-800',
     error: 'border-red-300 bg-red-50 text-red-700',
   };
-  return el('div', { class: `rounded-lg border px-3 py-2 text-sm ${tones[tone]}` }, text);
+  return el('div', { class: `rounded-lg border px-3 py-2 text-sm ${tones[tone]}` }, t(text));
 }
 
 export function sectionTitle(text) {
-  return el('h3', { class: 'text-sm font-semibold uppercase tracking-wide text-stone-500 mt-6 mb-2' }, text);
+  return el('h3', { class: 'text-sm font-semibold uppercase tracking-wide text-stone-500 mt-6 mb-2' }, t(text));
 }

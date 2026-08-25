@@ -99,6 +99,7 @@ func NewRouter(h Handlers, opts Options) http.Handler {
 			r.Post("/ijara", h.Finance.Ijara)
 			r.Post("/qard-hasan", h.Finance.QardHasan)
 			r.Post("/mudaraba", h.Finance.Mudaraba)
+			r.Post("/diminishing-musharaka", h.Finance.DimMusharaka)
 			r.Post("/salam", h.Finance.Salam)
 			r.Post("/istisna", h.Finance.Istisna)
 			r.Post("/musharaka", h.Finance.Musharaka)
@@ -110,6 +111,7 @@ func NewRouter(h Handlers, opts Options) http.Handler {
 			r.Post("/ushr", h.Zakat.Ushr)
 			r.Post("/livestock", h.Zakat.Livestock)
 			r.Post("/fidya", h.Zakat.Fidya)
+			r.Post("/fitrah", h.Zakat.Fitrah)
 			r.Post("/tazkiya", h.Zakat.Tazkiya)
 		})
 		r.Route("/invest", func(r chi.Router) {

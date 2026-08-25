@@ -2,6 +2,7 @@
 // mapping, and result rendering. The generic form engine in pages.js
 // consumes these definitions.
 import { el, fmtMoney, fmtPercent, kvRows, dataTable, badge, notice, sectionTitle } from './ui.js';
+import { t } from './i18n.js';
 
 const int = v => parseInt(v, 10);
 const put = (obj, key, v) => { if (v !== '' && v !== undefined && v !== null) obj[key] = v; };
@@ -96,7 +97,7 @@ export const CALCS = [
           ['Financed', fmtMoney(d.financed)],
           ['Monthly installment', fmtMoney(d.monthlyInstallment), { emphasis: true }],
         ]),
-        sectionTitle(`Schedule — ${d.termMonths} installments`),
+        sectionTitle(`${t('Schedule')} — ${d.termMonths} ${t('installments')}`),
         scheduleTable(d.schedule, true),
       ];
     },
@@ -206,6 +207,47 @@ export const CALCS = [
           ['≈ per month', fmtMoney(d.expectedMonthlyProfit)],
           ['Expected total at maturity', fmtMoney(d.expectedTotal), { emphasis: true }],
         ]),
+      ];
+    },
+  },
+
+  {
+    id: 'diminishing-musharaka', group: 'Retail finance',
+    title: 'Diminishing Musharakah', blurb: 'Islamic home financing: rent the bank’s share while buying it out.',
+    endpoint: '/api/v1/finance/diminishing-musharaka',
+    fields: [
+      { name: 'propertyValue', label: 'Property value', type: 'money', placeholder: '300000000' },
+      { name: 'downPayment', label: 'Down payment (your initial share)', type: 'money' },
+      { name: 'annualRentalRate', label: 'Annual rental rate (on bank’s share)', type: 'money', placeholder: '0.05' },
+      { name: 'termMonths', label: 'Term (months)', type: 'int', placeholder: '240' },
+    ],
+    payload(v) {
+      const p = { propertyValue: v.propertyValue, annualRentalRate: v.annualRentalRate, termMonths: int(v.termMonths) };
+      put(p, 'downPayment', v.downPayment);
+      return p;
+    },
+    render(d) {
+      return [
+        kvRows([
+          ['Bank financing', fmtMoney(d.bankFinancing)],
+          ['Your starting ownership', fmtPercent(d.initialOwnershipPercent)],
+          ['Monthly share purchase', fmtMoney(d.monthlyAcquisition)],
+          ['First month payment', fmtMoney(d.firstMonthPayment), { emphasis: true }],
+          ['Total rent over the term', fmtMoney(d.totalRent), { tone: 'brass' }],
+          ['Total paid (incl. down payment)', fmtMoney(d.totalPaid), { emphasis: true }],
+        ]),
+        notice('Rent is charged only on the bank’s outstanding share — it declines every month until you own 100%.', 'info'),
+        sectionTitle('Monthly schedule'),
+        dataTable(
+          [{ key: 'n', label: '#' }, { key: 'bankShareBefore', label: 'Bank share', align: 'right' },
+           { key: 'rent', label: 'Rent', align: 'right' }, { key: 'acquisition', label: 'Acquisition', align: 'right' },
+           { key: 'payment', label: 'Payment', align: 'right' }, { key: 'ownershipPercent', label: 'Ownership', align: 'right' }],
+          d.schedule.map(m => ({
+            n: m.n, bankShareBefore: fmtMoney(m.bankShareBefore), rent: fmtMoney(m.rent),
+            acquisition: fmtMoney(m.acquisition), payment: fmtMoney(m.payment),
+            ownershipPercent: fmtPercent(m.ownershipPercent),
+          })),
+        ),
       ];
     },
   },
@@ -321,7 +363,7 @@ export const CALCS = [
     render(d) {
       return [
         el('div', { class: 'flex items-center gap-2 mb-2' },
-          badge(d.resultType.toUpperCase(), d.resultType === 'loss' ? 'red' : 'green'),
+          badge(d.resultType === 'loss' ? 'Loss' : 'Profit', d.resultType === 'loss' ? 'red' : 'green'),
           badge(d.basis === 'capital_ratio' ? 'split by capital' : 'split by agreed ratio', 'stone')),
         d.resultType === 'loss' && notice('Loss always follows capital shares — the agreed profit ratio does not apply to losses.', 'info'),
         kvRows([['Total capital', fmtMoney(d.totalCapital)], ['Distributed', fmtMoney(d.amount), { emphasis: true }]]),
@@ -361,8 +403,8 @@ export const CALCS = [
       return [
         kvRows([
           ['Zakat base (net working capital)', fmtMoney(d.zakatBase), { emphasis: true }],
-          ['Above nisab', d.aboveNisab ? 'yes' : 'no'],
-          ['Hawl complete', d.hawlComplete ? 'yes' : 'no'],
+          ['Above nisab', d.aboveNisab ? t('yes') : t('no')],
+          ['Hawl complete', d.hawlComplete ? t('yes') : t('no')],
           [`Zakat due (${d.currency})`, fmtMoney(d.zakatDue), { emphasis: true }],
         ]),
         ...nisabBlock(d),
@@ -424,8 +466,8 @@ export const CALCS = [
           ['Gold value', fmtMoney(d.goldValue)],
           ['Silver value', fmtMoney(d.silverValue)],
           ['Total zakatable wealth', fmtMoney(d.totalWealth), { emphasis: true }],
-          ['Above nisab', d.aboveNisab ? 'yes' : 'no'],
-          ['Hawl complete', d.hawlComplete ? 'yes' : 'no'],
+          ['Above nisab', d.aboveNisab ? t('yes') : t('no')],
+          ['Hawl complete', d.hawlComplete ? t('yes') : t('no')],
           [`Zakat due (${d.currency})`, fmtMoney(d.zakatDue), { emphasis: true }],
         ]),
         ...nisabBlock(d),
@@ -489,7 +531,7 @@ export const CALCS = [
         el('ul', { class: 'space-y-2' },
           d.due.map(x => el('li', { class: 'flex items-center gap-3 rounded-lg bg-brand-50 px-3 py-2' },
             el('span', { class: 'font-mono text-lg font-semibold text-brand-700' }, String(x.count)),
-            el('span', {}, animalName(x.animal))))),
+            el('span', {}, t(animalName(x.animal)))))),
         d.note === 'computed_by_combination_rule' &&
           notice("Computed by the per-30 / per-40 combination rule (tabi' per 30 head, musinna per 40).", 'info'),
         d.note === 'above_120_rules_vary_consult_scholar' &&
@@ -519,6 +561,36 @@ export const CALCS = [
           ['Total due', fmtMoney(d.totalDue), { emphasis: true }],
         ]),
         d.needsReview && notice('The feeding rate is a seeded value pending scholar approval.'),
+      ];
+    },
+  },
+
+  {
+    id: 'fitrah', group: 'Zakat & religious',
+    title: 'Zakat al-Fitr', blurb: 'Eid obligation per person — one sa’ of staple food or its value.',
+    endpoint: '/api/v1/zakat/fitrah',
+    fields: [
+      { name: 'people', label: 'People covered (incl. infants)', type: 'int', placeholder: '5' },
+      { name: 'peoplePaidInFood', label: 'Of them, paid in food', type: 'int', placeholder: '0' },
+      { name: 'pricePerKg', label: 'Staple food price per kg', type: 'money', placeholder: '12000' },
+      { name: 'saKg', label: 'One sa’ in kg (optional)', type: 'money',
+        hint: () => 'Default 2.5 kg; scholarly estimates run 2.0–3.0 kg.' },
+    ],
+    payload(v) {
+      const p = { people: int(v.people), pricePerKg: v.pricePerKg };
+      if (v.peoplePaidInFood !== undefined && v.peoplePaidInFood !== '') p.peoplePaidInFood = int(v.peoplePaidInFood);
+      put(p, 'saKg', v.saKg);
+      return p;
+    },
+    render(d) {
+      return [
+        kvRows([
+          ['Per person', fmtMoney(d.perPerson)],
+          ['Total due', fmtMoney(d.totalDue), { emphasis: true }],
+          ['Food to hand over (kg)', d.foodKg],
+          ['Cash to hand over', fmtMoney(d.cashDue)],
+        ]),
+        notice('No nisab applies — Zakat al-Fitr is due for every covered person, and must reach recipients before the Eid prayer.', 'info'),
       ];
     },
   },
@@ -587,13 +659,13 @@ export const CALCS = [
       return [
         el('div', { class: 'mb-3' },
           badge(d.verdict === 'compliant' ? '✓ COMPLIANT' : '✗ NON-COMPLIANT', d.verdict === 'compliant' ? 'green' : 'red')),
-        !d.activityPassed && notice(`Business activity fails the screen: ${(d.failedActivities || []).join(', ')}`, 'error'),
+        !d.activityPassed && notice(`${t('Business activity fails the screen:')} ${(d.failedActivities || []).map(a => t(a)).join(', ')}`, 'error'),
         sectionTitle('Financial ratio screens (must stay below the threshold)'),
         dataTable(
           [{ key: 'name', label: 'Check' }, { key: 'ratio', label: 'Ratio', align: 'right' },
            { key: 'threshold', label: 'Threshold', align: 'right' }, { key: 'status', label: 'Result' }],
           d.checks.map(c => ({
-            name: checkLabel[c.key] || c.key,
+            name: t(checkLabel[c.key] || c.key),
             ratio: fmtPercent(c.ratio), threshold: '< ' + fmtPercent(c.threshold),
             status: c.passed ? '✓ pass' : '✗ fail',
           }))),

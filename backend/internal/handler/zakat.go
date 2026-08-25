@@ -19,6 +19,7 @@ type ZakatService interface {
 	Ushr(ctx context.Context, in zakat.UshrInput) (zakat.UshrResult, error)
 	Livestock(ctx context.Context, in zakat.LivestockInput) (zakat.LivestockResult, error)
 	Fidya(ctx context.Context, in zakat.FidyaInput) (zakat.FidyaResult, error)
+	Fitrah(ctx context.Context, in zakat.FitrahInput) (zakat.FitrahResult, error)
 	Tazkiya(ctx context.Context, in zakat.TazkiyaInput) (zakat.TazkiyaResult, error)
 }
 
@@ -325,6 +326,62 @@ func (h *Zakat) Fidya(w http.ResponseWriter, r *http.Request) {
 		TotalDue:    res.TotalDue.StringFixed(2),
 		Currency:    res.Currency,
 		NeedsReview: res.NeedsReview,
+	})
+}
+
+// --- zakat al-fitr ---------------------------------------------------------
+
+type fitrahRequest struct {
+	People           int    `json:"people"`
+	PeoplePaidInFood int    `json:"peoplePaidInFood"`
+	PricePerKg       string `json:"pricePerKg"`
+	SaKg             string `json:"saKg"` // optional override of the configured default
+}
+
+type fitrahResponse struct {
+	People           int    `json:"people"`
+	PeoplePaidInFood int    `json:"peoplePaidInFood"`
+	SaKg             string `json:"saKg"`
+	PricePerKg       string `json:"pricePerKg"`
+	PerPerson        string `json:"perPerson"`
+	TotalDue         string `json:"totalDue"`
+	FoodKg           string `json:"foodKg"`
+	CashDue          string `json:"cashDue"`
+}
+
+func (h *Zakat) Fitrah(w http.ResponseWriter, r *http.Request) {
+	var req fitrahRequest
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.Err(w, err)
+		return
+	}
+
+	fields := map[string]string{}
+	in := zakat.FitrahInput{People: req.People, PeoplePaidInFood: req.PeoplePaidInFood}
+	in.PricePerKg = parseAmount(req.PricePerKg, "pricePerKg", fields)
+	if req.SaKg != "" {
+		in.SaKgOverride = parseAmount(req.SaKg, "saKg", fields)
+	}
+	if len(fields) > 0 {
+		httpx.Err(w, apperr.Validation("invalid fitrah request", fields))
+		return
+	}
+
+	res, err := h.svc.Fitrah(r.Context(), in)
+	if err != nil {
+		httpx.Err(w, err)
+		return
+	}
+
+	httpx.Data(w, http.StatusOK, fitrahResponse{
+		People:           res.People,
+		PeoplePaidInFood: res.PeoplePaidInFood,
+		SaKg:             res.SaKg.String(),
+		PricePerKg:       res.PricePerKg.StringFixed(2),
+		PerPerson:        res.PerPerson.StringFixed(2),
+		TotalDue:         res.TotalDue.StringFixed(2),
+		FoodKg:           res.FoodKg.String(),
+		CashDue:          res.CashDue.StringFixed(2),
 	})
 }
 

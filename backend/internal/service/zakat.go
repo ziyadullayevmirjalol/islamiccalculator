@@ -139,6 +139,25 @@ func (s *Zakat) Fidya(ctx context.Context, in zakat.FidyaInput) (zakat.FidyaResu
 	return res, nil
 }
 
+func (s *Zakat) Fitrah(ctx context.Context, in zakat.FitrahInput) (zakat.FitrahResult, error) {
+	var setting struct {
+		Kg string `json:"kg"`
+	}
+	if err := settingJSON(ctx, s.settings, "fitrah.sa_kg", &setting); err != nil {
+		return zakat.FitrahResult{}, err
+	}
+	saKg, err := decimal.NewFromString(setting.Kg)
+	if err != nil {
+		return zakat.FitrahResult{}, apperr.Internal("fitrah sa_kg malformed", err)
+	}
+	res, err := zakat.CalculateFitrah(in, zakat.FitrahParams{SaKg: saKg})
+	if err != nil {
+		return zakat.FitrahResult{}, err
+	}
+	s.record(ctx, "zakat.fitrah", in, res)
+	return res, nil
+}
+
 func (s *Zakat) Tazkiya(ctx context.Context, in zakat.TazkiyaInput) (zakat.TazkiyaResult, error) {
 	res, err := zakat.CalculateTazkiya(in)
 	if err != nil {

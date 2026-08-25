@@ -8,6 +8,7 @@ import (
 
 	"github.com/shopspring/decimal"
 
+	"github.com/diyorbek/islamiccalculator/internal/domain/dimmusharaka"
 	"github.com/diyorbek/islamiccalculator/internal/domain/ijara"
 	"github.com/diyorbek/islamiccalculator/internal/domain/istisna"
 	"github.com/diyorbek/islamiccalculator/internal/domain/latepayment"
@@ -25,6 +26,7 @@ type FinanceService interface {
 	Ijara(ctx context.Context, in ijara.Input) (ijara.Result, error)
 	QardHasan(ctx context.Context, in qardhasan.Input) (qardhasan.Result, error)
 	Mudaraba(ctx context.Context, in mudaraba.Input) (mudaraba.Result, error)
+	DimMusharaka(ctx context.Context, in dimmusharaka.Input) (dimmusharaka.Result, error)
 	Salam(ctx context.Context, in salam.Input) (salam.Result, error)
 	Istisna(ctx context.Context, in istisna.Input) (istisna.Result, error)
 	Musharaka(ctx context.Context, in musharaka.Input) (musharaka.Result, error)
@@ -581,6 +583,89 @@ func (h *Finance) Musharaka(w http.ResponseWriter, r *http.Request) {
 			ProfitSharePercent: s.ProfitSharePercent.StringFixed(2),
 			AppliedShare:       s.AppliedShare.StringFixed(4),
 			Amount:             s.Amount.StringFixed(2),
+		}
+	}
+	httpx.Data(w, http.StatusOK, resp)
+}
+
+// --- diminishing musharakah ------------------------------------------------
+
+type dimMusharakaRequest struct {
+	PropertyValue    string `json:"propertyValue"`
+	DownPayment      string `json:"downPayment"`
+	AnnualRentalRate string `json:"annualRentalRate"`
+	TermMonths       int    `json:"termMonths"`
+}
+
+type dimMonthDTO struct {
+	N                int    `json:"n"`
+	BankShareBefore  string `json:"bankShareBefore"`
+	Rent             string `json:"rent"`
+	Acquisition      string `json:"acquisition"`
+	Payment          string `json:"payment"`
+	OwnershipPercent string `json:"ownershipPercent"`
+}
+
+type dimMusharakaResponse struct {
+	PropertyValue           string        `json:"propertyValue"`
+	DownPayment             string        `json:"downPayment"`
+	BankFinancing           string        `json:"bankFinancing"`
+	InitialOwnershipPercent string        `json:"initialOwnershipPercent"`
+	MonthlyAcquisition      string        `json:"monthlyAcquisition"`
+	FirstMonthPayment       string        `json:"firstMonthPayment"`
+	TotalRent               string        `json:"totalRent"`
+	TotalAcquisition        string        `json:"totalAcquisition"`
+	TotalPaid               string        `json:"totalPaid"`
+	TermMonths              int           `json:"termMonths"`
+	Schedule                []dimMonthDTO `json:"schedule"`
+}
+
+func (h *Finance) DimMusharaka(w http.ResponseWriter, r *http.Request) {
+	var req dimMusharakaRequest
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.Err(w, err)
+		return
+	}
+
+	fields := map[string]string{}
+	in := dimmusharaka.Input{TermMonths: req.TermMonths}
+	in.PropertyValue = parseAmount(req.PropertyValue, "propertyValue", fields)
+	if req.DownPayment != "" {
+		in.DownPayment = parseAmount(req.DownPayment, "downPayment", fields)
+	}
+	in.AnnualRentalRate = parseAmount(req.AnnualRentalRate, "annualRentalRate", fields)
+	if len(fields) > 0 {
+		httpx.Err(w, apperr.Validation("invalid diminishing musharakah request", fields))
+		return
+	}
+
+	res, err := h.svc.DimMusharaka(r.Context(), in)
+	if err != nil {
+		httpx.Err(w, err)
+		return
+	}
+
+	resp := dimMusharakaResponse{
+		PropertyValue:           res.PropertyValue.StringFixed(2),
+		DownPayment:             res.DownPayment.StringFixed(2),
+		BankFinancing:           res.BankFinancing.StringFixed(2),
+		InitialOwnershipPercent: res.InitialOwnershipPercent.StringFixed(4),
+		MonthlyAcquisition:      res.MonthlyAcquisition.StringFixed(2),
+		FirstMonthPayment:       res.FirstMonthPayment.StringFixed(2),
+		TotalRent:               res.TotalRent.StringFixed(2),
+		TotalAcquisition:        res.TotalAcquisition.StringFixed(2),
+		TotalPaid:               res.TotalPaid.StringFixed(2),
+		TermMonths:              res.TermMonths,
+		Schedule:                make([]dimMonthDTO, len(res.Schedule)),
+	}
+	for i, m := range res.Schedule {
+		resp.Schedule[i] = dimMonthDTO{
+			N:                m.N,
+			BankShareBefore:  m.BankShareBefore.StringFixed(2),
+			Rent:             m.Rent.StringFixed(2),
+			Acquisition:      m.Acquisition.StringFixed(2),
+			Payment:          m.Payment.StringFixed(2),
+			OwnershipPercent: m.OwnershipPercent.StringFixed(4),
 		}
 	}
 	httpx.Data(w, http.StatusOK, resp)

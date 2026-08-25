@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/diyorbek/islamiccalculator/internal/domain/dimmusharaka"
 	"github.com/diyorbek/islamiccalculator/internal/domain/ijara"
 	"github.com/diyorbek/islamiccalculator/internal/domain/istisna"
 	"github.com/diyorbek/islamiccalculator/internal/domain/latepayment"
@@ -85,6 +86,15 @@ func (s *Finance) Musharaka(ctx context.Context, in musharaka.Input) (musharaka.
 		return musharaka.Result{}, err
 	}
 	s.record(ctx, "finance.musharaka", in, res)
+	return res, nil
+}
+
+func (s *Finance) DimMusharaka(ctx context.Context, in dimmusharaka.Input) (dimmusharaka.Result, error) {
+	res, err := dimmusharaka.Calculate(in)
+	if err != nil {
+		return dimmusharaka.Result{}, err
+	}
+	s.record(ctx, "finance.diminishing_musharaka", in, res)
 	return res, nil
 }
 

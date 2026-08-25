@@ -184,6 +184,7 @@ func newTestRouter(db fakePinger) (http.Handler, *fakeHistory) {
 		"fidya.daily":              `{"amount": "15000", "currency": "UZS", "needs_review": true}`,
 		"kaffarah.days":            `{"days": 60}`,
 		"kaffarah.oath_feedings":   `{"count": 10}`,
+		"fitrah.sa_kg":             `{"kg": "2.5", "needs_review": true}`,
 	}
 	metals := fakeMetals{
 		"gold":   {Metal: "gold", PricePerGram: mustDecimal("1450000"), Currency: "UZS", Source: "seed", FetchedAt: time.Unix(0, 0)},
@@ -593,6 +594,33 @@ func TestZakatFamilyEndpoints(t *testing.T) {
 		assert.Contains(t, rec.Body.String(), `"purgeAmount":"60000.00"`)
 		assert.Contains(t, rec.Body.String(), `"disposition":"charity"`)
 	})
+}
+
+func TestDiminishingMusharakaEndpoint(t *testing.T) {
+	router, history := newTestRouter(fakePinger{})
+	rec := do(t, router, http.MethodPost, "/api/v1/finance/diminishing-musharaka", `{
+		"propertyValue": "300000", "downPayment": "60000",
+		"annualRentalRate": "0.05", "termMonths": 240
+	}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"monthlyAcquisition":"1000.00"`)
+	assert.Contains(t, rec.Body.String(), `"firstMonthPayment":"2000.00"`)
+	assert.Contains(t, rec.Body.String(), `"totalRent":"120500.00"`)
+	assert.Contains(t, rec.Body.String(), `"totalPaid":"420500.00"`)
+	require.NotEmpty(t, history.saved)
+	assert.Equal(t, "finance.diminishing_musharaka", history.saved[0].CalcType)
+}
+
+func TestFitrahEndpoint(t *testing.T) {
+	router, _ := newTestRouter(fakePinger{})
+	rec := do(t, router, http.MethodPost, "/api/v1/zakat/fitrah", `{
+		"people": 5, "peoplePaidInFood": 2, "pricePerKg": "12000"
+	}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"perPerson":"30000.00"`)
+	assert.Contains(t, rec.Body.String(), `"totalDue":"150000.00"`)
+	assert.Contains(t, rec.Body.String(), `"foodKg":"5"`)
+	assert.Contains(t, rec.Body.String(), `"cashDue":"90000.00"`)
 }
 
 func TestLatePaymentEndpoint(t *testing.T) {

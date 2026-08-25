@@ -526,6 +526,56 @@
         }
       }
     },
+    "/api/v1/finance/diminishing-musharaka": {
+      "post": {
+        "summary": "Diminishing Musharakah (Musharakah Mutanaqisah) home financing",
+        "description": "Client and bank co-own the property; each month the client pays rent on the bank's outstanding share plus a fixed share acquisition, until the bank's share reaches zero. Rent declines as ownership transfers; nothing compounds.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "propertyValue",
+                  "annualRentalRate",
+                  "termMonths"
+                ],
+                "properties": {
+                  "propertyValue": {
+                    "type": "string",
+                    "example": "300000"
+                  },
+                  "downPayment": {
+                    "type": "string",
+                    "example": "60000"
+                  },
+                  "annualRentalRate": {
+                    "type": "string",
+                    "example": "0.05",
+                    "description": "charged on the bank's outstanding share"
+                  },
+                  "termMonths": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 360
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Monthly schedule (rent + acquisition + ownership %)",
+            "totals": null
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
     "/api/v1/finance/salam": {
       "post": {
         "summary": "Salam forward purchase — full advance vs. expected delivery value",
@@ -924,6 +974,56 @@
         "responses": {
           "200": {
             "description": "Total due with the configured daily rate; needsReview flags unapproved seed rates"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/zakat/fitrah": {
+      "post": {
+        "summary": "Zakat al-Fitr for a household",
+        "description": "No nisab — due from every covered person (including infants) with surplus food on Eid day; must reach recipients before the Eid prayer. One sa' ≈ 2.0–3.0 kg of staple (configured default 2.5 kg).\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "people",
+                  "pricePerKg"
+                ],
+                "properties": {
+                  "people": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "everyone covered incl. infants and dependants"
+                  },
+                  "peoplePaidInFood": {
+                    "type": "integer",
+                    "description": "how many are paid with the staple itself"
+                  },
+                  "pricePerKg": {
+                    "type": "string",
+                    "example": "12000",
+                    "description": "local staple price per kg"
+                  },
+                  "saKg": {
+                    "type": "string",
+                    "description": "optional sa' override in kg (1–5)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-person value",
+            "total due": null,
+            "food kg and cash split": null
           },
           "400": {
             "description": "Validation error"

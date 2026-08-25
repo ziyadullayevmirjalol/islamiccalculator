@@ -1,8 +1,6 @@
-# Loads DB credentials from .env so migrate targets need no inline secrets.
-ifneq (,$(wildcard .env))
-include .env
-export
-endif
+# NOTE: no `include .env` here on purpose — Make mangles $ characters in
+# values (a trailing $ vanishes), silently corrupting passwords. The Go
+# commands load .env themselves via godotenv, which handles $ correctly.
 
 .PHONY: run build test lint tidy docker-up docker-down migrate-up migrate-down migrate-new openapi-json
 
