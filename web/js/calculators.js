@@ -5,6 +5,21 @@ import { el, fmtMoney, fmtPercent, kvRows, dataTable, badge, notice, sectionTitl
 import { t } from './i18n.js';
 
 const int = v => parseInt(v, 10);
+
+// Human percent → fraction as a pure string shift (no floats, contract C2):
+// "20" → "0.2", "2.5" → "0.025", "0.5" → "0.005", "100" → "1".
+export function pct(s) {
+  if (typeof s !== 'string' || !/^\d+(\.\d+)?$/.test(s.trim())) return s;
+  const [i, f = ''] = s.trim().split('.');
+  const digits = i + f;
+  const point = i.length - 2;
+  let res = point <= 0
+    ? '0.' + '0'.repeat(-point) + digits
+    : digits.slice(0, point) + '.' + digits.slice(point);
+  if (res.includes('.')) res = res.replace(/0+$/, '').replace(/\.$/, '');
+  res = res.replace(/^0+(?=\d)/, '');
+  return res === '' ? '0' : res;
+}
 const put = (obj, key, v) => { if (v !== '' && v !== undefined && v !== null) obj[key] = v; };
 
 // Shared renderers ------------------------------------------------------------
@@ -76,14 +91,17 @@ export const CALCS = [
       { name: 'cost', label: 'Asset cost', type: 'money', placeholder: '120000000' },
       { name: 'markupMode', label: 'Markup as', type: 'select', default: 'rate',
         options: [{ value: 'rate', label: '% of cost' }, { value: 'amount', label: 'Fixed amount' }] },
-      { name: 'markupValue', label: 'Markup value', type: 'money', placeholder: '0.10',
-        hint: v => v.markupMode === 'rate' ? 'e.g. 0.10 = 10%' : 'absolute amount' },
+      { name: 'markupValueRate', label: 'Markup (%)', type: 'percent', placeholder: '10',
+        showIf: v => v.markupMode === 'rate', hint: () => 'Enter percent, e.g. 10 for 10%.' },
+      { name: 'markupValueAmount', label: 'Markup amount', type: 'money', placeholder: '12000000',
+        showIf: v => v.markupMode === 'amount' },
       { name: 'downPayment', label: 'Down payment (optional)', type: 'money' },
       { name: 'termMonths', label: 'Term (months)', type: 'int', placeholder: '12' },
       { name: 'firstDueDate', label: 'First due date (optional)', type: 'date' },
     ],
     payload(v) {
-      const p = { cost: v.cost, markup: { mode: v.markupMode, value: v.markupValue }, termMonths: int(v.termMonths) };
+      const value = v.markupMode === 'rate' ? pct(v.markupValueRate) : v.markupValueAmount;
+      const p = { cost: v.cost, markup: { mode: v.markupMode, value }, termMonths: int(v.termMonths) };
       put(p, 'downPayment', v.downPayment);
       put(p, 'firstDueDate', v.firstDueDate);
       return p;
@@ -113,7 +131,10 @@ export const CALCS = [
       { name: 'assetCost', label: 'Asset cost', type: 'money', placeholder: '100000000' },
       { name: 'profitMode', label: 'Profit as', type: 'select', default: 'rate', showIf: v => v.mode === 'profit',
         options: [{ value: 'rate', label: '% of cost' }, { value: 'amount', label: 'Fixed amount' }] },
-      { name: 'profitValue', label: 'Profit value', type: 'money', placeholder: '0.20', showIf: v => v.mode === 'profit' },
+      { name: 'profitValueRate', label: 'Profit (%)', type: 'percent', placeholder: '20',
+        showIf: v => v.mode === 'profit' && v.profitMode === 'rate', hint: () => 'Enter percent, e.g. 10 for 10%.' },
+      { name: 'profitValueAmount', label: 'Profit amount', type: 'money', placeholder: '20000000',
+        showIf: v => v.mode === 'profit' && v.profitMode === 'amount' },
       { name: 'monthlyRent', label: 'Monthly rent', type: 'money', showIf: v => v.mode === 'rent' },
       { name: 'transferPrice', label: 'Ownership transfer price', type: 'money' },
       { name: 'advancePayment', label: 'Advance rent (optional)', type: 'money' },
@@ -122,7 +143,7 @@ export const CALCS = [
     ],
     payload(v) {
       const p = { mode: v.mode, assetCost: v.assetCost, termMonths: int(v.termMonths) };
-      if (v.mode === 'profit') p.profit = { mode: v.profitMode, value: v.profitValue };
+      if (v.mode === 'profit') p.profit = { mode: v.profitMode, value: v.profitMode === 'rate' ? pct(v.profitValueRate) : v.profitValueAmount };
       else put(p, 'monthlyRent', v.monthlyRent);
       put(p, 'transferPrice', v.transferPrice);
       put(p, 'advancePayment', v.advancePayment);
@@ -187,15 +208,15 @@ export const CALCS = [
       { name: 'mode', label: 'Deposit type', type: 'select', default: 'mudaraba',
         options: [{ value: 'mudaraba', label: 'Mudaraba (profit sharing)' }, { value: 'wakala', label: 'Wakala (agency)' }] },
       { name: 'amount', label: 'Deposit amount', type: 'money', placeholder: '10000000' },
-      { name: 'poolRateAnnual', label: 'Indicative pool rate (annual)', type: 'money', placeholder: '0.18' },
-      { name: 'shareRatio', label: 'Your profit share (0–1)', type: 'money', placeholder: '0.60', showIf: v => v.mode === 'mudaraba' },
-      { name: 'wakalaFeeRate', label: 'Wakala fee rate (annual)', type: 'money', placeholder: '0.02', showIf: v => v.mode === 'wakala' },
+      { name: 'poolRateAnnual', label: 'Indicative pool rate (% per year)', type: 'percent', placeholder: '18' },
+      { name: 'shareRatio', label: 'Your profit share (%)', type: 'percent', placeholder: '60', showIf: v => v.mode === 'mudaraba' },
+      { name: 'wakalaFeeRate', label: 'Wakala fee (% per year)', type: 'percent', placeholder: '2', showIf: v => v.mode === 'wakala' },
       { name: 'termMonths', label: 'Term (months)', type: 'int', placeholder: '12' },
     ],
     payload(v) {
-      const p = { mode: v.mode, amount: v.amount, poolRateAnnual: v.poolRateAnnual, termMonths: int(v.termMonths) };
-      if (v.mode === 'mudaraba') put(p, 'shareRatio', v.shareRatio);
-      else put(p, 'wakalaFeeRate', v.wakalaFeeRate);
+      const p = { mode: v.mode, amount: v.amount, poolRateAnnual: pct(v.poolRateAnnual), termMonths: int(v.termMonths) };
+      if (v.mode === 'mudaraba') put(p, 'shareRatio', pct(v.shareRatio));
+      else put(p, 'wakalaFeeRate', pct(v.wakalaFeeRate));
       return p;
     },
     render(d) {
@@ -218,11 +239,11 @@ export const CALCS = [
     fields: [
       { name: 'propertyValue', label: 'Property value', type: 'money', placeholder: '300000000' },
       { name: 'downPayment', label: 'Down payment (your initial share)', type: 'money' },
-      { name: 'annualRentalRate', label: 'Annual rental rate (on bank’s share)', type: 'money', placeholder: '0.05' },
+      { name: 'annualRentalRate', label: 'Annual rental rate (%, on bank’s share)', type: 'percent', placeholder: '5' },
       { name: 'termMonths', label: 'Term (months)', type: 'int', placeholder: '240' },
     ],
     payload(v) {
-      const p = { propertyValue: v.propertyValue, annualRentalRate: v.annualRentalRate, termMonths: int(v.termMonths) };
+      const p = { propertyValue: v.propertyValue, annualRentalRate: pct(v.annualRentalRate), termMonths: int(v.termMonths) };
       put(p, 'downPayment', v.downPayment);
       return p;
     },
@@ -421,12 +442,12 @@ export const CALCS = [
         options: [{ value: 'rate', label: 'Annual rate, accrued daily' }, { value: 'flat', label: 'Flat fee' }] },
       { name: 'overdueAmount', label: 'Overdue amount', type: 'money', placeholder: '10000000' },
       { name: 'daysLate', label: 'Days late', type: 'int', placeholder: '30' },
-      { name: 'annualRate', label: 'Annual rate', type: 'money', placeholder: '0.10', showIf: v => v.mode === 'rate' },
+      { name: 'annualRate', label: 'Annual rate (%)', type: 'percent', placeholder: '10', showIf: v => v.mode === 'rate' },
       { name: 'flatFee', label: 'Flat fee', type: 'money', showIf: v => v.mode === 'flat' },
     ],
     payload(v) {
       const p = { mode: v.mode, overdueAmount: v.overdueAmount, daysLate: int(v.daysLate) };
-      if (v.mode === 'rate') put(p, 'annualRate', v.annualRate);
+      if (v.mode === 'rate') put(p, 'annualRate', pct(v.annualRate));
       else put(p, 'flatFee', v.flatFee);
       return p;
     },
@@ -607,12 +628,12 @@ export const CALCS = [
       { name: 'totalIncome', label: 'Total income', type: 'money', showIf: v => v.mode === 'declared' },
       { name: 'impureAmount', label: 'Impure / interest portion', type: 'money', showIf: v => v.mode === 'declared' },
       { name: 'dividendAmount', label: 'Dividend received', type: 'money', showIf: v => v.mode === 'dividend' },
-      { name: 'impureRatio', label: 'Company impure-income ratio (0–1)', type: 'money', placeholder: '0.03', showIf: v => v.mode === 'dividend' },
+      { name: 'impureRatio', label: 'Company impure-income ratio (%)', type: 'percent', placeholder: '3', showIf: v => v.mode === 'dividend' },
     ],
     payload(v) {
       const p = { mode: v.mode };
       if (v.mode === 'declared') { put(p, 'totalIncome', v.totalIncome); put(p, 'impureAmount', v.impureAmount); }
-      else { put(p, 'dividendAmount', v.dividendAmount); put(p, 'impureRatio', v.impureRatio); }
+      else { put(p, 'dividendAmount', v.dividendAmount); put(p, 'impureRatio', pct(v.impureRatio)); }
       return p;
     },
     render(d) {
@@ -686,7 +707,7 @@ export const CALCS = [
         { name: 'name', label: 'Name', type: 'text', placeholder: 'UzAuto 2031' },
         { name: 'faceValue', label: 'Face value', type: 'money', placeholder: '100000000' },
         { name: 'purchasePrice', label: 'Purchase price', type: 'money', placeholder: '95000000' },
-        { name: 'distributionRateAnnual', label: 'Rate', type: 'money', placeholder: '0.09' },
+        { name: 'distributionRateAnnual', label: 'Rate %', type: 'percent', placeholder: '9' },
         { name: 'frequency', label: 'Freq/yr', type: 'select',
           options: [{ value: '1', label: '1' }, { value: '2', label: '2' }, { value: '4', label: '4' }, { value: '12', label: '12' }] },
         { name: 'termMonths', label: 'Months', type: 'text', placeholder: '60' },
@@ -697,7 +718,7 @@ export const CALCS = [
       return {
         positions: (v.positions || []).map(p => {
           const row = { faceValue: p.faceValue, purchasePrice: p.purchasePrice,
-            distributionRateAnnual: p.distributionRateAnnual,
+            distributionRateAnnual: pct(p.distributionRateAnnual),
             frequency: int(p.frequency), termMonths: int(p.termMonths) };
           put(row, 'name', p.name);
           return row;

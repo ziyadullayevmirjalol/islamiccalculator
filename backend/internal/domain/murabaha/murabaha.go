@@ -135,6 +135,12 @@ func validate(in Input) error {
 	if in.Markup.Value.IsNegative() {
 		fields["markup.value"] = "must_not_be_negative"
 	}
+	// Rate mode sanity bound: a total markup above 500% of cost is not a
+	// real contract — it is almost certainly a percent-vs-fraction unit
+	// mistake (typing 20 to mean 20%, which the API reads as 2000%).
+	if in.Markup.Mode == MarkupModeRate && in.Markup.Value.GreaterThan(decimal.NewFromInt(5)) {
+		fields["markup.value"] = "out_of_range"
+	}
 	if in.DownPayment.IsNegative() {
 		fields["downPayment"] = "must_not_be_negative"
 	}

@@ -36,6 +36,13 @@ function fieldControl(f, values, rerender) {
           }), t(o.label))));
     case 'date':
       return el('input', { type: 'date', class: CLS.input, value: values[f.name] || '', onchange: e => set(e.target.value) });
+    case 'percent':
+      return el('div', { class: 'relative' },
+        el('input', {
+          type: 'text', class: CLS.input + ' font-mono pr-8', inputmode: 'decimal',
+          value: values[f.name] || '', placeholder: f.placeholder || '', oninput: e => set(e.target.value),
+        }),
+        el('span', { class: 'absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none' }, '%'));
     case 'int':
       return el('input', {
         type: 'number', step: '1', min: '0', class: CLS.input, inputmode: 'numeric',
@@ -68,6 +75,15 @@ function listEditor(list, values, rerender) {
       return el('select', {
         class: CLS.input, onchange: e => { row[col.name] = e.target.value; },
       }, col.options.map(o => el('option', { value: o.value, selected: (row[col.name] ?? col.options[0].value) === o.value }, o.label)));
+    }
+    if (col.type === 'percent') {
+      return el('div', { class: 'relative' },
+        el('input', {
+          type: 'text', class: CLS.input + ' font-mono pr-6', inputmode: 'decimal',
+          value: row[col.name] || '', placeholder: col.placeholder || '',
+          oninput: e => { row[col.name] = e.target.value; },
+        }),
+        el('span', { class: 'absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs pointer-events-none' }, '%'));
     }
     return el('input', {
       type: col.type === 'date' ? 'date' : 'text',

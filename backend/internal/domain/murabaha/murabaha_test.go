@@ -120,6 +120,7 @@ func TestCalculate_Validation(t *testing.T) {
 		{"term too long", Input{Cost: d("1000"), Markup: Markup{MarkupModeRate, d("0.1")}, TermMonths: 361}, "termMonths"},
 		{"bad markup mode", Input{Cost: d("1000"), Markup: Markup{"percent", d("0.1")}, TermMonths: 12}, "markup.mode"},
 		{"negative markup", Input{Cost: d("1000"), Markup: Markup{MarkupModeRate, d("-0.1")}, TermMonths: 12}, "markup.value"},
+		{"rate above 500% is a unit mistake", Input{Cost: d("8000000"), Markup: Markup{MarkupModeRate, d("20")}, TermMonths: 12}, "markup.value"},
 		{"negative down payment", Input{Cost: d("1000"), Markup: Markup{MarkupModeRate, d("0.1")}, DownPayment: d("-1"), TermMonths: 12}, "downPayment"},
 		{"down payment swallows sale", Input{Cost: d("1000"), Markup: Markup{MarkupModeRate, d("0.1")}, DownPayment: d("1100"), TermMonths: 12}, "downPayment"},
 	}

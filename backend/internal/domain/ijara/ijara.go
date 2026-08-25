@@ -146,6 +146,11 @@ func validate(in Input) error {
 		if in.Profit.Value.IsNegative() {
 			fields["profit.value"] = "must_not_be_negative"
 		}
+		// Same sanity bound as murabaha: >500% of cost in rate mode is a
+		// percent-vs-fraction unit mistake, not a contract.
+		if in.Profit.Mode == ProfitModeRate && in.Profit.Value.GreaterThan(decimal.NewFromInt(5)) {
+			fields["profit.value"] = "out_of_range"
+		}
 	case ModeRent:
 		if !in.MonthlyRent.IsPositive() {
 			fields["monthlyRent"] = "must_be_positive"

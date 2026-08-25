@@ -108,6 +108,7 @@ func TestCalculate_Validation(t *testing.T) {
 		{"zero cost", Input{Mode: ModeRent, MonthlyRent: d("1"), TermMonths: 12}, "assetCost"},
 		{"zero rent in rent mode", Input{Mode: ModeRent, AssetCost: d("100"), TermMonths: 12}, "monthlyRent"},
 		{"bad profit mode", Input{Mode: ModeProfit, AssetCost: d("100"), Profit: Profit{"pct", d("1")}, TermMonths: 12}, "profit.mode"},
+		{"profit rate above 500% is a unit mistake", Input{Mode: ModeProfit, AssetCost: d("100"), Profit: Profit{ProfitModeRate, d("20")}, TermMonths: 12}, "profit.value"},
 		{"negative transfer", Input{Mode: ModeRent, AssetCost: d("100"), MonthlyRent: d("1"), TransferPrice: d("-1"), TermMonths: 12}, "transferPrice"},
 	}
 	for _, tc := range cases {

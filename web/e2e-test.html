@@ -13,10 +13,12 @@ try {
 
   // 1. anonymous murabaha through the calc definition's own payload builder
   const def = calcById('murabaha');
+  // The percent-unit regression case: 8,000,000 at 20% over 12 months
+  // must be 800,000/month (a user typing "20" means 20%, never 2000%).
   const d1 = await api(def.endpoint, { method: 'POST', body: def.payload({
-    cost: '120000000', markupMode: 'rate', markupValue: '0.10', termMonths: '12',
+    cost: '8000000', markupMode: 'rate', markupValueRate: '20', termMonths: '12',
   }) });
-  log(d1.monthlyInstallment === '11000000.00', 'anon-murabaha', d1.monthlyInstallment);
+  log(d1.monthlyInstallment === '800000.00', 'anon-murabaha-percent', d1.monthlyInstallment);
 
   // 2. register + authed calculation
   const email = `e2e-${Date.now()}@test.local`;
@@ -40,7 +42,7 @@ try {
   // 4. validation error surfaces typed fields
   try {
     await api(def.endpoint, { method: 'POST', body: def.payload({
-      cost: '1000', markupMode: 'rate', markupValue: '0.1', termMonths: '0',
+      cost: '1000', markupMode: 'rate', markupValueRate: '10', termMonths: '0',
     }) });
     log(false, 'validation-error');
   } catch (e) {
