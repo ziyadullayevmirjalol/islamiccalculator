@@ -751,3 +751,12 @@ export const CALCS = [
 ];
 
 export const calcById = id => CALCS.find(c => c.id === id);
+
+// Derives the backend's calc_type (e.g. "finance.murabaha") from a
+// calculator's endpoint path — the one place this mapping lives, so
+// history filtering and Excel export never drift apart.
+export const calcTypeOf = c => {
+  const domain = c.endpoint.includes('/zakat/') ? 'zakat.'
+    : c.endpoint.includes('/invest/') ? 'invest.' : 'finance.';
+  return domain + c.endpoint.split('/').pop().replaceAll('-', '_');
+};

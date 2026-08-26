@@ -1,9 +1,9 @@
 // Page renderers: dashboard, generic calculator page (form engine),
 // auth, history, rates, and the livestock reference table.
-import { api, ApiError, login, register, session } from './api.js';
-import { CALCS, GROUPS, calcById } from './calculators.js';
+import { api, ApiError, downloadXlsx, login, register, session } from './api.js';
+import { CALCS, GROUPS, calcById, calcTypeOf } from './calculators.js';
 import { el, CLS, kvRows, dataTable, badge, notice, sectionTitle, fmtMoney } from './ui.js';
-import { t } from './i18n.js';
+import { t, LANG } from './i18n.js';
 
 // --- generic form engine -----------------------------------------------------
 
@@ -112,6 +112,31 @@ function listEditor(list, values, rerender) {
     }, t('+ Add row')));
 }
 
+// A snapshot of the values used for the LAST successful calculation —
+// never a live reference. Without this, editing a field after
+// calculating (but before recalculating) would export numbers that no
+// longer match what's on screen.
+function exportButton(def, valuesSnapshot) {
+  const btn = el('button', {
+    type: 'button',
+    class: CLS.btnGhost + ' text-xs gap-1.5',
+    onclick: async () => {
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = t('Exporting…');
+      try {
+        await downloadXlsx(calcTypeOf(def), def.payload(valuesSnapshot), LANG, def.id);
+      } catch (err) {
+        alert(err instanceof ApiError ? err.message : t('Export failed'));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    },
+  }, '⬇ ' + t('Download Excel'));
+  return btn;
+}
+
 function showFieldErrors(form, fields) {
   form.querySelectorAll('[data-error-for]').forEach(p => { p.classList.add('hidden'); p.textContent = ''; });
   const unmatched = [];
@@ -161,7 +186,11 @@ export function renderCalcPage(root, id, prefill) {
       try {
         const data = await api(def.endpoint, { method: 'POST', body: def.payload(values) });
         showFieldErrors(form, {});
-        resultPanel.replaceChildren(...[def.render(data)].flat(Infinity).filter(Boolean));
+        const snapshot = structuredClone(values);
+        resultPanel.replaceChildren(
+          el('div', { class: 'flex justify-end mb-3' }, exportButton(def, snapshot)),
+          ...[def.render(data)].flat(Infinity).filter(Boolean),
+        );
       } catch (err) {
         if (err instanceof ApiError) {
           const unmatched = showFieldErrors(form, err.fields);
@@ -301,11 +330,7 @@ export function renderHistory(root) {
   const listBox = el('div', { class: 'space-y-3' }, el('p', { class: 'text-sm text-stone-400' }, 'Loading…'));
   const filter = el('select', { class: CLS.input + ' max-w-xs', onchange: () => load() },
     el('option', { value: '' }, t('All calculators')),
-    CALCS.map(c => {
-      const type = c.endpoint.includes('/zakat/') ? 'zakat.' : c.endpoint.includes('/invest/') ? 'invest.' : 'finance.';
-      const key = type + c.endpoint.split('/').pop().replaceAll('-', '_');
-      return el('option', { value: key }, t(c.title));
-    }));
+    CALCS.map(c => el('option', { value: calcTypeOf(c) }, t(c.title))));
 
   async function load() {
     try {

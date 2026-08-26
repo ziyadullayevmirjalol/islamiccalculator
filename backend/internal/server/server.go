@@ -53,6 +53,11 @@ type Options struct {
 // under /api/v1 as their phases land.
 func NewRouter(h Handlers, opts Options) http.Handler {
 	r := chi.NewRouter()
+	// Captured (not shadowed) for the export handler's in-process
+	// self-dispatch: by the time any request arrives, every route below
+	// is registered, so re-entering through `root` reaches the exact
+	// same validation and calculation path a direct call would.
+	root := r
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -117,6 +122,9 @@ func NewRouter(h Handlers, opts Options) http.Handler {
 		r.Route("/invest", func(r chi.Router) {
 			r.Post("/screener", h.Invest.Screener)
 			r.Post("/sukuk", h.Invest.Sukuk)
+		})
+		r.Route("/export", func(r chi.Router) {
+			r.Post("/xlsx", handler.NewExport(root).Handle)
 		})
 		r.Route("/rates", func(r chi.Router) {
 			r.Get("/metals", h.Rates.Metals)

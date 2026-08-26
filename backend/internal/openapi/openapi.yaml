@@ -586,6 +586,49 @@ paths:
         "200": { description: Per-position schedules and portfolio totals; guaranteed is always false }
         "400": { description: Validation error }
 
+  /api/v1/export/xlsx:
+    post:
+      summary: Download a calculation as an Excel workbook
+      description: >
+        Re-runs the named calculator against the given inputs — in-process,
+        through the same validation and calculation path as its own
+        endpoint — and returns the result as a real .xlsx file. Numeric
+        cells are real numbers (summable), rate/ratio fields use Excel's
+        percentage format, and any array field in the response (a
+        schedule, shares, positions, checks, due animals, ...) becomes its
+        own sheet. Always anonymous: no Authorization header reaches the
+        internal recompute, so exporting never creates a visible duplicate
+        in a signed-in user's history.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [calcType, inputs]
+              properties:
+                calcType:
+                  type: string
+                  description: "the calc_type of any calculator, e.g. finance.murabaha, zakat.wealth, invest.sukuk"
+                inputs:
+                  type: object
+                  description: the exact same request body that calculator's own endpoint accepts
+                lang:
+                  type: string
+                  enum: [uz, ru, en]
+                  default: uz
+      responses:
+        "200":
+          description: The workbook
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: {}
+        "400":
+          description: Unknown calcType, or the calculation itself is invalid (same error shape as the calculator's own endpoint)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /api/v1/reference/livestock-rules:
     get:
       summary: Seeded Hanafi livestock zakat tiers (for client display)

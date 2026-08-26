@@ -115,3 +115,47 @@ export async function login(email, password) {
   adoptAuthPayload(data);
   return data;
 }
+
+// --- export --------------------------------------------------------------
+
+// Calls the export endpoint and returns the workbook as a Blob. Split
+// out from downloadXlsx() so this network/parsing logic — the part
+// worth testing — can be exercised without also triggering a real
+// browser file-save (which headless test runners can't observe).
+// Deliberately does not attach the Authorization header — the backend
+// recomputes anonymously so an export can never create a surprise
+// duplicate in the user's history.
+export async function fetchXlsxBlob(calcType, inputs, lang) {
+  const res = await fetch(`${API_BASE}/api/v1/export/xlsx`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ calcType, inputs, lang }),
+  });
+  if (!res.ok) {
+    let message = `Export failed (${res.status})`;
+    let code = 'EXPORT_FAILED';
+    let fields;
+    try {
+      const body = await res.json();
+      if (body.error?.message) message = body.error.message;
+      if (body.error?.code) code = body.error.code;
+      fields = body.error?.fields;
+    } catch { /* non-JSON error body; keep the generic message */ }
+    throw new ApiError(res.status, code, message, fields);
+  }
+  return res.blob();
+}
+
+// Downloads a calculation as an .xlsx file via the browser's normal
+// save-file flow.
+export async function downloadXlsx(calcType, inputs, lang, filenameHint) {
+  const blob = await fetchXlsxBlob(calcType, inputs, lang);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${filenameHint}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

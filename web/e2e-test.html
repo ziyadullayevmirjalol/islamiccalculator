@@ -2,8 +2,8 @@
 <html><head><meta charset="utf-8"><title>e2e</title></head><body>
 <pre id="out">running…</pre>
 <script type="module">
-import { api, register, session, logout } from './js/api.js';
-import { calcById } from './js/calculators.js';
+import { api, fetchXlsxBlob, register, session, logout } from './js/api.js';
+import { calcById, calcTypeOf } from './js/calculators.js';
 
 const out = [];
 const log = (ok, name, extra = '') => out.push(`${ok ? 'PASS' : 'FAIL'} ${name} ${extra}`);
@@ -49,7 +49,38 @@ try {
     log(e.code === 'VALIDATION_FAILED' && e.fields.termMonths === 'out_of_range', 'validation-error', e.fields.termMonths);
   }
 
+  // 5. Excel export: exercises the exact shipped fetch/parse logic
+  // (fetchXlsxBlob — everything downloadXlsx does short of the browser
+  // file-save, which headless runners can't observe) against the real
+  // backend, for several calculators, using each spec's own payload
+  // builder so a future field-shape change breaks this test too.
   logout();
+  const xlsxType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const specs = [
+    ['murabaha', { cost: '8000000', markupMode: 'rate', markupValueRate: '20', termMonths: '12' }],
+    ['diminishing-musharaka', { propertyValue: '300000', downPayment: '60000', annualRentalRate: '5', termMonths: '240' }],
+    ['wealth-zakat', { cash: '50000000', hawlComplete: true }],
+    ['sukuk', { positions: [{ name: 'A', faceValue: '100000000', purchasePrice: '95000000', distributionRateAnnual: '9', frequency: '2', termMonths: '60' }] }],
+  ];
+  for (const [id, values] of specs) {
+    try {
+      const spec = calcById(id);
+      const blob = await fetchXlsxBlob(calcTypeOf(spec), spec.payload(values), 'uz');
+      log(blob.type === xlsxType && blob.size > 1000, `export-${id}`, `${blob.type} ${blob.size}b`);
+    } catch (e) {
+      log(false, `export-${id}`, e.message);
+    }
+  }
+
+  // Export of an unknown calc type must reject with the backend's own
+  // typed error, not a generic network failure.
+  try {
+    await fetchXlsxBlob('not.a.real.calc', {}, 'uz');
+    log(false, 'export-unknown-calc-type-rejected');
+  } catch (e) {
+    log(e.status === 400 && e.fields?.calcType === 'unknown_calc_type',
+        'export-unknown-calc-type-rejected', JSON.stringify(e.fields));
+  }
 } catch (e) {
   out.push('FATAL ' + e.message);
 }
